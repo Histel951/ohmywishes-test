@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Wishlist\Infrastructure\Http\EventSubscriber;
 
-use App\Shared\Application\Exception\ValidationException;
 use App\Wishlist\Domain\Exception\WishlistItemAlreadyExistsException;
 use App\Wishlist\Domain\Exception\WishlistNotFoundException;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -12,7 +11,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
-use Symfony\Component\Validator\ConstraintViolationInterface;
 
 final class WishlistExceptionSubscriber implements EventSubscriberInterface
 {
@@ -28,9 +26,6 @@ final class WishlistExceptionSubscriber implements EventSubscriberInterface
         $exception = $event->getThrowable();
 
         $response = match (true) {
-            $exception instanceof ValidationException
-            => $this->validationErrorResponse($exception),
-
             $exception instanceof WishlistNotFoundException
             => $this->errorResponse(
                 message: $exception->getMessage(),
@@ -49,27 +44,6 @@ final class WishlistExceptionSubscriber implements EventSubscriberInterface
         if ($response !== null) {
             $event->setResponse($response);
         }
-    }
-
-    private function validationErrorResponse(
-        ValidationException $exception,
-    ): JsonResponse {
-        $errors = [];
-
-        /** @var ConstraintViolationInterface $violation */
-        foreach ($exception->violations() as $violation) {
-            $errors[] = [
-                'field' => $violation->getPropertyPath(),
-                'message' => $violation->getMessage(),
-            ];
-        }
-
-        return new JsonResponse(
-            [
-                'errors' => $errors,
-            ],
-            Response::HTTP_UNPROCESSABLE_ENTITY,
-        );
     }
 
     private function errorResponse(
